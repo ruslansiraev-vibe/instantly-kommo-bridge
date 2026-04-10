@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Setup Guide: Instantly → Kommo (Direct Integration)</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #fafafa; color: #2c2c2c; line-height: 1.75;
+        }
+        .header {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            padding: 56px 40px 48px; color: #fff;
+        }
+        .header .container { max-width: 880px; margin: 0 auto; }
+        .header .eyebrow {
+            font-size: 12px; text-transform: uppercase; letter-spacing: 4px;
+            color: #4caf50; font-weight: 700; margin-bottom: 14px;
+        }
+        .header h1 { font-size: 32px; font-weight: 800; margin-bottom: 8px; }
+        .header .tagline { font-size: 16px; color: #a8b2d1; }
+        .header .meta {
+            margin-top: 24px; display: flex; gap: 30px; flex-wrap: wrap;
+            font-size: 13px; color: #8892b0;
+        }
+        .header .meta strong { color: #ccd6f6; }
+
+        .container { max-width: 880px; margin: 0 auto; padding: 0 40px; }
+        .section { padding: 44px 0; border-bottom: 1px solid #e8e8e8; }
+        .section:last-child { border-bottom: none; }
+        .section-eyebrow {
+            font-size: 11px; text-transform: uppercase; letter-spacing: 3px;
+            color: #e94560; font-weight: 700; margin-bottom: 6px;
+        }
+        .section h2 { font-size: 24px; font-weight: 700; color: #1a1a2e; margin-bottom: 18px; }
+        .section h3 { font-size: 18px; font-weight: 700; color: #1a1a2e; margin: 24px 0 10px; }
+        .lead { font-size: 16px; color: #333; margin-bottom: 24px; line-height: 1.8; }
+
+        .block {
+            background: #fff; border-radius: 12px; padding: 24px 28px;
+            margin-bottom: 14px; box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            border-left: 5px solid #e0e0e0;
+        }
+        .block.blue { border-left-color: #1565c0; }
+        .block.green { border-left-color: #2e7d32; }
+        .block.orange { border-left-color: #e65100; }
+        .block.purple { border-left-color: #7b1fa2; }
+        .block.red { border-left-color: #c62828; }
+        .block.teal { border-left-color: #00897b; }
+
+        .block h4 { font-size: 16px; font-weight: 700; color: #1a1a2e; margin-bottom: 8px; }
+        .block p { font-size: 14px; color: #4a4a4a; margin-bottom: 6px; }
+        .block ul, .block ol { padding-left: 20px; }
+        .block li { font-size: 14px; color: #4a4a4a; padding: 3px 0; }
+
+        code {
+            background: #f0f0f0; padding: 2px 6px; border-radius: 4px;
+            font-family: 'SF Mono', 'Fira Code', monospace; font-size: 13px; color: #c62828;
+        }
+        pre {
+            background: #1a1a2e; color: #a8b2d1; padding: 20px; border-radius: 10px;
+            overflow-x: auto; font-size: 13px; line-height: 1.5; margin: 12px 0;
+            font-family: 'SF Mono', 'Fira Code', monospace;
+        }
+        pre strong { color: #e94560; font-weight: 700; }
+        pre em { color: #4caf50; font-style: normal; }
+        pre .comment { color: #546e7a; }
+
+        table { width: 100%; border-collapse: collapse; margin: 14px 0; }
+        th {
+            text-align: left; font-size: 12px; text-transform: uppercase;
+            letter-spacing: 1px; color: #888; padding: 10px 12px; border-bottom: 2px solid #e0e0e0;
+        }
+        td {
+            font-size: 14px; padding: 10px 12px; border-bottom: 1px solid #f0f0f0; color: #4a4a4a;
+        }
+        td:first-child { font-weight: 600; color: #1a1a2e; }
+
+        .step-num {
+            display: inline-flex; align-items: center; justify-content: center;
+            width: 32px; height: 32px; background: #1565c0; color: #fff;
+            border-radius: 50%; font-weight: 800; font-size: 14px; margin-right: 10px;
+            flex-shrink: 0;
+        }
+        .step-num.green-bg { background: #2e7d32; }
+        .step-num.orange-bg { background: #e65100; }
+        .step-num.purple-bg { background: #7b1fa2; }
+        .step-num.teal-bg { background: #00897b; }
+        .step-header { display: flex; align-items: center; margin-bottom: 10px; }
+        .step-header h4 { margin-bottom: 0; }
+
+        .warning {
+            background: #fff3e0; border-left: 4px solid #ff9800; border-radius: 0 8px 8px 0;
+            padding: 14px 18px; margin: 14px 0; font-size: 14px; color: #e65100;
+        }
+        .info {
+            background: #e3f2fd; border-left: 4px solid #1565c0; border-radius: 0 8px 8px 0;
+            padding: 14px 18px; margin: 14px 0; font-size: 14px; color: #0d47a1;
+        }
+        .success {
+            background: #e8f5e9; border-left: 4px solid #4caf50; border-radius: 0 8px 8px 0;
+            padding: 14px 18px; margin: 14px 0; font-size: 14px; color: #2e7d32;
+        }
+
+        .arch-diagram {
+            background: #1a1a2e; color: #a8b2d1; padding: 28px; border-radius: 12px;
+            font-family: 'SF Mono', 'Fira Code', monospace; font-size: 14px;
+            line-height: 1.6; margin: 18px 0; overflow-x: auto; white-space: pre;
+        }
+        .arch-diagram .highlight { color: #4caf50; font-weight: 700; }
+        .arch-diagram .accent { color: #e94560; font-weight: 700; }
+        .arch-diagram .dim { color: #546e7a; }
+
+        .file-tree {
+            background: #263238; color: #cfd8dc; padding: 20px 24px; border-radius: 10px;
+            font-family: 'SF Mono', 'Fira Code', monospace; font-size: 13px;
+            line-height: 1.8; margin: 14px 0;
+        }
+        .file-tree .folder { color: #82b1ff; font-weight: 700; }
+        .file-tree .file { color: #c3e88d; }
+        .file-tree .desc { color: #546e7a; }
+
+        .comparison { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 14px 0; }
+        .comparison .col { background: #fff; border-radius: 12px; padding: 20px 24px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+        .comparison .col.old { border-top: 4px solid #c62828; }
+        .comparison .col.new { border-top: 4px solid #2e7d32; }
+        .comparison .col h4 { margin-bottom: 12px; }
+        .comparison .col.old h4 { color: #c62828; }
+        .comparison .col.new h4 { color: #2e7d32; }
+        .comparison .col li { font-size: 14px; color: #4a4a4a; padding: 4px 0; }
+
+        @media (max-width: 700px) {
+            .comparison { grid-template-columns: 1fr; }
+            .header { padding: 36px 20px 32px; }
+            .container { padding: 0 20px; }
+        }
+
+        .footer {
+            padding: 36px 0; text-align: center; font-size: 13px; color: #bbb;
+        }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <div class="container">
+        <div class="eyebrow">Setup Guide</div>
+        <h1>Instantly &rarr; Kommo: Direct Integration</h1>
+        <p class="tagline">Webhook-based bridge without third-party intermediaries. Solves the &laquo;matryoshka&raquo; problem.</p>
+        <div class="meta">
+            <div>Date: <strong>4 April 2026</strong></div>
+            <div>Priority: <strong>High</strong></div>
+            <div>Stack: <strong>Python + FastAPI</strong></div>
+            <div>Status: <strong>Ready to deploy</strong></div>
+        </div>
+    </div>
+</div>
+
+<div class="container">
+
+    <!-- ==================== PROBLEM ==================== -->
+    <div class="section">
+        <div class="section-eyebrow">Problem</div>
+        <h2>Why this script exists</h2>
+        <p class="lead">
+            We use <strong>Instantly</strong> for cold email outreach and <strong>Kommo</strong> as our CRM. Previously, replies from Instantly were forwarded to a corporate email connected to Kommo. This created a cascade of problems we call the <strong>&laquo;matryoshka problem&raquo;</strong>.
+        </p>
+
+        <div class="block red">
+            <h4>The matryoshka problem</h4>
+            <p>When Instantly forwards every email to the inbox connected to Kommo, the CRM has no way to distinguish between useful replies and noise. The result:</p>
+            <ul>
+                <li><strong>Warm-up emails</strong> create junk deals &mdash; Instantly sends warm-up messages to maintain sender reputation, and every one of them ends up as a new deal in Kommo</li>
+                <li><strong>Negative replies</strong> flood the CRM &mdash; &ldquo;not interested&rdquo;, &ldquo;unsubscribe me&rdquo;, out-of-office auto-replies all create deals that sales reps waste time closing</li>
+                <li><strong>Duplicate contacts</strong> everywhere &mdash; there is no check whether a contact already exists, so every new reply creates a brand new contact record</li>
+                <li><strong>Duplicate deals</strong> &mdash; every reply from the same lead creates a new deal instead of adding a note to the existing one, making it impossible to track conversation history</li>
+                <li><strong>Lost context</strong> &mdash; the conversation thread is scattered across multiple deals, so when a sales rep picks up a lead they have no idea what was discussed before</li>
+            </ul>
+        </div>
+
+        <div class="block red">
+            <h4>Scale of the problem</h4>
+            <p>With cold outreach to large databases, each email account generates ~60 new contacts per month. Multiply by the number of sending accounts, and the CRM fills up with hundreds of garbage records that obscure real opportunities.</p>
+        </div>
+
+        <h3>Previous solution: Make.com</h3>
+        <div class="block orange">
+            <h4>What we tried</h4>
+            <p>The first attempt to solve this was a Make.com scenario (Instantly &rarr; Make.com &rarr; Kommo) that filtered replies and deduplicated contacts. While it worked, it introduced its own issues:</p>
+            <ul>
+                <li><strong>Third-party dependency</strong> &mdash; Make.com is another paid service ($29+/mo) that can go down, change pricing, or hit operation limits</li>
+                <li><strong>Operation limits</strong> &mdash; Make.com charges per operation; high-volume outreach burns through quotas quickly</li>
+                <li><strong>Limited control</strong> &mdash; debugging and customizing filter logic in Make.com's visual editor is cumbersome compared to code</li>
+                <li><strong>Latency</strong> &mdash; an extra hop through a third-party service adds delay</li>
+            </ul>
+        </div>
+
+        <h3>This solution: direct bridge</h3>
+        <div class="block green">
+            <h4>What this script does</h4>
+            <p>A lightweight Python microservice that connects Instantly and Kommo <strong>directly</strong>, without any intermediary. It:</p>
+            <ol>
+                <li><strong>Receives webhooks</strong> from Instantly when leads reply or are classified as interested</li>
+                <li><strong>Filters</strong> &mdash; only positive replies pass through (Interested, Meeting Booked, Meeting Completed, Won). Warm-up, negative, OOO, and auto-replies are silently dropped</li>
+                <li><strong>Deduplicates contacts</strong> &mdash; searches Kommo by email before creating; one email = one contact</li>
+                <li><strong>Deduplicates deals</strong> &mdash; searches for an active deal linked to the contact; one contact = one active deal</li>
+                <li><strong>Preserves context</strong> &mdash; every new reply is added as a note inside the existing deal, building a full conversation history</li>
+                <li><strong>Prevents duplicate processing</strong> &mdash; SQLite store tracks processed email IDs, so webhook retries don't create duplicates</li>
+            </ol>
+        </div>
+
+        <div class="success">
+            <strong>Result:</strong> Clean CRM with only qualified leads, no duplicates, full conversation history in each deal, zero third-party dependencies, and complete control over the integration logic.
+        </div>
+    </div>
+
+    <!-- ==================== ARCHITECTURE ==================== -->
+    <div class="section">
+        <div class="section-eyebrow">Architecture</div>
+        <h2>How it works</h2>
+        <p class="lead">
+            Instantly sends webhook events when leads reply. Our Python microservice receives them, filters out junk (warm-up, negative, auto-reply), deduplicates contacts and deals, and pushes clean data into Kommo via REST API. No Make.com, no Zapier, no intermediaries.
+        </p>
+
+        <div class="arch-diagram"><span class="accent">Instantly</span>                      <span class="highlight">Your Server</span>                       <span class="accent">Kommo CRM</span>
+<span class="dim">────────────</span>                    <span class="dim">──────────────</span>                     <span class="dim">──────────</span>
+
+  reply_received   <span class="dim">──webhook──&gt;</span>   <span class="highlight">FastAPI server</span>
+  lead_interested  <span class="dim">──webhook──&gt;</span>        |
+  lead_meeting_booked <span class="dim">─────&gt;</span>       |
+                                     v
+                              <span class="highlight">Filter:</span> only positive replies
+                              <span class="highlight">Dedup:</span>  SQLite (email_id)
+                                     |
+                                     v
+                              Kommo API: search contact by email
+                              <span class="dim">┌──────┴──────┐</span>
+                          <span class="highlight">found</span>          <span class="accent">not found</span>
+                              |              |
+                              |        <span class="accent">create contact</span>
+                              |              |
+                              v              v
+                              Kommo API: search active lead
+                              <span class="dim">┌──────┴──────┐</span>
+                          <span class="highlight">found</span>          <span class="accent">not found</span>
+                              |              |
+                              |        <span class="accent">create lead</span>
+                              |              |
+                              v              v
+                              <span class="highlight">Kommo API: add note with reply text</span></div>
+
+        <h3>File structure</h3>
+        <div class="file-tree"><span class="folder">instantly-kommo-bridge/</span>
+  <span class="file">config.py</span>              <span class="desc"># Config from env variables</span>
+  <span class="file">dedup_store.py</span>         <span class="desc"># SQLite deduplication</span>
+  <span class="file">kommo_client.py</span>        <span class="desc"># Kommo API v4 client</span>
+  <span class="file">webhook_handler.py</span>     <span class="desc"># Filter + business logic</span>
+  <span class="file">server.py</span>              <span class="desc"># FastAPI entry point</span>
+  <span class="file">register_webhooks.py</span>   <span class="desc"># One-time webhook setup script</span>
+  <span class="file">requirements.txt</span>       <span class="desc"># Dependencies</span>
+  <span class="file">.env.example</span>           <span class="desc"># Environment template</span></div>
+    </div>
+
+    <!-- ==================== PREREQUISITES ==================== -->
+    <div class="section">
+        <div class="section-eyebrow">Prerequisites</div>
+        <h2>What you need before starting</h2>
+
+        <div class="block blue">
+            <h4>Accounts &amp; Plans</h4>
+            <table>
+                <thead>
+                    <tr><th>Service</th><th>Requirement</th><th>Why</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>Instantly</td><td>Hyper Growth plan ($97/mo+)</td><td>Webhooks require this plan or higher</td></tr>
+                    <tr><td>Kommo</td><td>Advanced / Pro / Enterprise</td><td>API access and webhook support</td></tr>
+                    <tr><td>Server</td><td>Any VPS or cloud service</td><td>To host the Python microservice</td></tr>
+                    <tr><td>Python</td><td>3.10+</td><td>Runtime for the bridge</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="warning">
+            <strong>If Instantly plan does not support webhooks</strong> &mdash; the same script can work in polling mode (cron every 5 min pulling <code>GET /api/v2/emails</code>). Contact us for the polling variant.
+        </div>
+    </div>
+
+    <!-- ==================== STEP 1 ==================== -->
+    <div class="section">
+        <div class="section-eyebrow">Step 1</div>
+        <h2>Kommo: create integration &amp; token</h2>
+
+        <div class="block green">
+            <div class="step-header"><span class="step-num green-bg">1</span><h4>Create a private integration</h4></div>
+            <ol>
+                <li>Kommo &rarr; Settings &rarr; Integrations</li>
+                <li>Click <strong>+ Create integration</strong> (private)</li>
+                <li>Name: <code>Instantly Bridge</code></li>
+                <li>Permissions: contacts, leads, notes &mdash; read + write</li>
+            </ol>
+        </div>
+
+        <div class="block green">
+            <div class="step-header"><span class="step-num green-bg">2</span><h4>Generate a long-lived token</h4></div>
+            <ol>
+                <li>Open the integration &rarr; <strong>Keys and scopes</strong> tab</li>
+                <li>Click <strong>Generate long-lived token</strong></li>
+                <li>Set expiration: <strong>1 year</strong></li>
+                <li><strong>Copy the token immediately</strong> &mdash; it will not be shown again</li>
+            </ol>
+            <div class="info">
+                <strong>Why long-lived token?</strong> Unlike OAuth 2.0 (access token expires every 24h, refresh token every 3 months), a long-lived token works like a simple API key. No refresh logic needed. Just regenerate once a year.
+            </div>
+        </div>
+
+        <div class="block green">
+            <div class="step-header"><span class="step-num green-bg">3</span><h4>Create a pipeline for Instantly leads</h4></div>
+            <p>Kommo &rarr; Settings &rarr; Pipelines. Create new pipeline:</p>
+            <table>
+                <thead><tr><th>Stage</th><th>Color</th><th>Description</th></tr></thead>
+                <tbody>
+                    <tr><td>New Reply</td><td>Blue</td><td>Just received a reply from lead</td></tr>
+                    <tr><td>In Conversation</td><td>Yellow</td><td>Active dialogue</td></tr>
+                    <tr><td>Meeting Booked</td><td>Green</td><td>Call scheduled</td></tr>
+                    <tr><td>Meeting Done</td><td>Green</td><td>Call completed</td></tr>
+                    <tr><td>Partnership</td><td>Green</td><td>Lead agreed to work</td></tr>
+                    <tr><td>Rejected</td><td>Red</td><td>Lead declined</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="block green">
+            <div class="step-header"><span class="step-num green-bg">4</span><h4>Get Pipeline ID and Status ID</h4></div>
+            <ol>
+                <li>Open Kommo in browser</li>
+                <li>Press <strong>F12</strong> (DevTools) &rarr; <strong>Network</strong> tab</li>
+                <li>Go to any lead page or pipeline settings</li>
+                <li>Find request to <code>/api/v4/leads/pipelines</code></li>
+                <li>In the response JSON, find your pipeline's <code>id</code> and first stage <code>status_id</code></li>
+            </ol>
+            <pre><span class="comment">// Example response (find your pipeline):</span>
+{
+  "id": <strong>7654321</strong>,          <span class="comment">// &larr; this is KOMMO_PIPELINE_ID</span>
+  "name": "Instantly Inbound",
+  "_embedded": {
+    "statuses": [
+      {
+        "id": <strong>54321098</strong>,    <span class="comment">// &larr; this is KOMMO_PIPELINE_STATUS_ID (first stage)</span>
+        "name": "New Reply"
+      }
+    ]
+  }
+}</pre>
+        </div>
+    </div>
+
+    <!-- ==================== STEP 2 ==================== -->
+    <div class="section">
+        <div class="section-eyebrow">Step 2</div>
+        <h2>Instantly: API key</h2>
+
+        <div class="block blue">
+            <div class="step-header"><span class="step-num">1</span><h4>Generate API v2 key</h4></div>
+            <ol>
+                <li>Instantly &rarr; Settings &rarr; Integrations &rarr; API</li>
+                <li>Click <strong>Create API Key</strong></li>
+                <li>Scopes: minimum <code>emails:read</code>, <code>leads:read</code>. Best: <code>all:read</code></li>
+                <li>Copy the key &mdash; you'll need it in <code>.env</code></li>
+            </ol>
+        </div>
+
+        <div class="block blue">
+            <div class="step-header"><span class="step-num">2</span><h4>Generate a webhook secret</h4></div>
+            <p>Create a random secret for webhook signature verification:</p>
+            <pre>openssl rand -hex 32
+<span class="comment"># Example output: a3f8b2c1d4e5f6...  &larr; save this as INSTANTLY_WEBHOOK_SECRET</span></pre>
+        </div>
+    </div>
+
+    <!-- ==================== STEP 3 ==================== -->
+    <div class="section">
+        <div class="section-eyebrow">Step 3</div>
+        <h2>Server: install &amp; configure</h2>
+
+        <div class="block purple">
+            <div class="step-header"><span class="step-num purple-bg">1</span><h4>Clone and install dependencies</h4></div>
+            <pre>cd projects/instantly-kommo-bridge
+
+<span class="comment"># Create virtual environment</span>
+python3 -m venv venv
+source venv/bin/activate
+
+<span class="comment"># Install dependencies</span>
+pip install -r requirements.txt
+pip install python-dotenv</pre>
+        </div>
+
+        <div class="block purple">
+            <div class="step-header"><span class="step-num purple-bg">2</span><h4>Configure environment variables</h4></div>
+            <pre><span class="comment"># Copy template</span>
+cp .env.example .env
+
+<span class="comment"># Edit .env with your values</span>
+nano .env</pre>
+
+            <p>Fill in all values:</p>
+            <table>
+                <thead><tr><th>Variable</th><th>Where to get</th><th>Example</th></tr></thead>
+                <tbody>
+                    <tr>
+                        <td><code>INSTANTLY_API_KEY</code></td>
+                        <td>Step 2.1</td>
+                        <td><code>inst_v2_abc123...</code></td>
+                    </tr>
+                    <tr>
+                        <td><code>INSTANTLY_WEBHOOK_SECRET</code></td>
+                        <td>Step 2.2</td>
+                        <td><code>a3f8b2c1d4e5f6...</code></td>
+                    </tr>
+                    <tr>
+                        <td><code>KOMMO_SUBDOMAIN</code></td>
+                        <td>Your Kommo URL: <strong>xxx</strong>.kommo.com</td>
+                        <td><code>mycompany</code></td>
+                    </tr>
+                    <tr>
+                        <td><code>KOMMO_TOKEN</code></td>
+                        <td>Step 1.2</td>
+                        <td><code>eyJ0eXAiOi...</code></td>
+                    </tr>
+                    <tr>
+                        <td><code>KOMMO_PIPELINE_ID</code></td>
+                        <td>Step 1.4</td>
+                        <td><code>7654321</code></td>
+                    </tr>
+                    <tr>
+                        <td><code>KOMMO_PIPELINE_STATUS_ID</code></td>
+                        <td>Step 1.4</td>
+                        <td><code>54321098</code></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- ==================== STEP 4 ==================== -->
+    <div class="section">
+        <div class="section-eyebrow">Step 4</div>
+        <h2>Launch the server</h2>
+
+        <div class="block teal">
+            <div class="step-header"><span class="step-num teal-bg">1</span><h4>Start locally</h4></div>
+            <pre>source venv/bin/activate
+export $(cat .env | xargs)
+
+<span class="comment"># Start the server</span>
+uvicorn server:app --host 0.0.0.0 --port 8000
+
+<span class="comment"># Verify</span>
+curl http://localhost:8000/health
+<em>{"status":"ok"}</em></pre>
+        </div>
+
+        <div class="block teal">
+            <div class="step-header"><span class="step-num teal-bg">2</span><h4>Make the server publicly accessible</h4></div>
+            <p>Instantly needs to reach your server over the internet. Choose one:</p>
+            <table>
+                <thead><tr><th>Option</th><th>Command</th><th>Best for</th></tr></thead>
+                <tbody>
+                    <tr>
+                        <td>ngrok (testing)</td>
+                        <td><code>ngrok http 8000</code></td>
+                        <td>Quick test, free, temporary URL</td>
+                    </tr>
+                    <tr>
+                        <td>Cloudflare Tunnel</td>
+                        <td><code>cloudflared tunnel --url http://localhost:8000</code></td>
+                        <td>Free, stable, no port opening</td>
+                    </tr>
+                    <tr>
+                        <td>VPS + nginx</td>
+                        <td>Deploy on DigitalOcean / Hetzner</td>
+                        <td>Production: SSL, uptime, reliability</td>
+                    </tr>
+                </tbody>
+            </table>
+            <div class="warning">
+                <strong>For production</strong> &mdash; use a VPS with nginx reverse proxy, SSL certificate (Let's Encrypt), and systemd service for auto-restart. ngrok is only for testing.
+            </div>
+        </div>
+
+        <div class="block teal">
+            <div class="step-header"><span class="step-num teal-bg">3</span><h4>Production setup (VPS)</h4></div>
+            <pre><span class="comment"># nginx config (/etc/nginx/sites-available/instantly-bridge)</span>
+server {
+    listen 443 ssl;
+    server_name bridge.yourdomain.com;
+
+    ssl_certificate     /etc/letsencrypt/live/bridge.yourdomain.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/bridge.yourdomain.com/privkey.pem;
+
+    location / {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+}
+
+<span class="comment"># systemd service (/etc/systemd/system/instantly-bridge.service)</span>
+[Unit]
+Description=Instantly-Kommo Bridge
+After=network.target
+
+[Service]
+User=www-data
+WorkingDirectory=/opt/instantly-kommo-bridge
+EnvironmentFile=/opt/instantly-kommo-bridge/.env
+ExecStart=/opt/instantly-kommo-bridge/venv/bin/uvicorn server:app --host 127.0.0.1 --port 8000
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target</pre>
+        </div>
+    </div>
+
+    <!-- ==================== STEP 5 ==================== -->
+    <div class="section">
+        <div class="section-eyebrow">Step 5</div>
+        <h2>Register webhooks in Instantly</h2>
+
+        <div class="block orange">
+            <div class="step-header"><span class="step-num orange-bg">1</span><h4>Run the registration script</h4></div>
+            <pre>python register_webhooks.py https://bridge.yourdomain.com/webhook/instantly
+
+<span class="comment"># Output:</span>
+<em>Registering webhooks pointing to: https://bridge.yourdomain.com/webhook/instantly</em>
+
+<em>  Registered: reply_received -> wh_abc123</em>
+<em>  Registered: lead_interested -> wh_def456</em>
+<em>  Registered: lead_meeting_booked -> wh_ghi789</em>
+
+<em>Done. Webhooks registered.</em></pre>
+        </div>
+
+        <div class="block orange">
+            <div class="step-header"><span class="step-num orange-bg">2</span><h4>What each webhook does</h4></div>
+            <table>
+                <thead><tr><th>Event</th><th>When it fires</th><th>What the bridge does</th></tr></thead>
+                <tbody>
+                    <tr>
+                        <td><code>reply_received</code></td>
+                        <td>Any reply from a lead</td>
+                        <td>Checks <code>lt_interest_status &ge; 1</code>, skips negative/auto-reply</td>
+                    </tr>
+                    <tr>
+                        <td><code>lead_interested</code></td>
+                        <td>AI classified reply as positive</td>
+                        <td>Always passes filter (pre-classified by Instantly AI)</td>
+                    </tr>
+                    <tr>
+                        <td><code>lead_meeting_booked</code></td>
+                        <td>Meeting scheduled</td>
+                        <td>Always passes filter</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- ==================== STEP 6 ==================== -->
+    <div class="section">
+        <div class="section-eyebrow">Step 6</div>
+        <h2>Testing</h2>
+
+        <div class="block green">
+            <h4>Test checklist</h4>
+            <ol>
+                <li>
+                    <strong>Test 1: New positive reply</strong><br>
+                    Send a test reply in Instantly (or use <code>register_webhooks.py</code> test endpoint).<br>
+                    <em>Expected:</em> Contact created in Kommo + Lead created + Note with reply text added.
+                </li>
+                <li style="margin-top: 10px;">
+                    <strong>Test 2: Repeat reply from same lead</strong><br>
+                    Send another reply from the same email address.<br>
+                    <em>Expected:</em> NO new contact, NO new lead. Note added to EXISTING lead.
+                </li>
+                <li style="margin-top: 10px;">
+                    <strong>Test 3: Negative reply</strong><br>
+                    Lead replies with &ldquo;not interested&rdquo;.<br>
+                    <em>Expected:</em> Nothing reaches Kommo (filtered out).
+                </li>
+                <li style="margin-top: 10px;">
+                    <strong>Test 4: Auto-reply / OOO</strong><br>
+                    <em>Expected:</em> Nothing reaches Kommo.
+                </li>
+                <li style="margin-top: 10px;">
+                    <strong>Test 5: Duplicate webhook</strong><br>
+                    Same email_id arrives twice (Instantly retry).<br>
+                    <em>Expected:</em> Processed only once (SQLite dedup).
+                </li>
+            </ol>
+        </div>
+
+        <div class="info">
+            <strong>Check server logs:</strong> <code>tail -f /var/log/syslog | grep instantly-bridge</code> or watch uvicorn output directly.
+        </div>
+    </div>
+
+    <!-- ==================== STEP 7 ==================== -->
+    <div class="section">
+        <div class="section-eyebrow">Step 7</div>
+        <h2>Disable old email forwarding</h2>
+
+        <div class="block red">
+            <h4>Critical: remove the old integration</h4>
+            <p>After all tests pass, <strong>disable email forwarding</strong> from Instantly to corporate email linked to Kommo. This is the root cause of the &laquo;matryoshka&raquo; problem.</p>
+            <ol>
+                <li>Instantly &rarr; Settings &rarr; Email Accounts</li>
+                <li>Remove or disable the forwarding rule to <code>*@yourcompany.kommo.com</code></li>
+                <li>Verify: send a test email &mdash; it should NOT appear in Kommo inbox, only via the bridge</li>
+            </ol>
+        </div>
+    </div>
+
+    <!-- ==================== COMPARISON ==================== -->
+    <div class="section">
+        <div class="section-eyebrow">Result</div>
+        <h2>Before vs. After</h2>
+
+        <div class="comparison">
+            <div class="col old">
+                <h4>Before (email forwarding)</h4>
+                <ul>
+                    <li>Warm-up creates junk deals</li>
+                    <li>Negative replies flood CRM</li>
+                    <li>Every reply = new deal</li>
+                    <li>Duplicate contacts everywhere</li>
+                    <li>No conversation context</li>
+                    <li>Depends on Make.com ($29+/mo)</li>
+                </ul>
+            </div>
+            <div class="col new">
+                <h4>After (direct bridge)</h4>
+                <ul>
+                    <li>Only positive replies reach Kommo</li>
+                    <li>Negative / OOO / auto-reply filtered</li>
+                    <li>One contact = one active deal</li>
+                    <li>Dedup by email + SQLite</li>
+                    <li>Full conversation in deal notes</li>
+                    <li>Self-hosted, no intermediaries</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== FILTER LOGIC ==================== -->
+    <div class="section">
+        <div class="section-eyebrow">Reference</div>
+        <h2>Instantly interest status codes</h2>
+
+        <table>
+            <thead><tr><th>Category</th><th>lt_interest_status</th><th>Forwarded to Kommo?</th></tr></thead>
+            <tbody>
+                <tr><td>Interested</td><td><code>1</code></td><td style="color:#2e7d32; font-weight:700;">YES</td></tr>
+                <tr><td>Meeting Booked</td><td><code>2</code></td><td style="color:#2e7d32; font-weight:700;">YES</td></tr>
+                <tr><td>Meeting Completed</td><td><code>3</code></td><td style="color:#2e7d32; font-weight:700;">YES</td></tr>
+                <tr><td>Won</td><td><code>4</code></td><td style="color:#2e7d32; font-weight:700;">YES</td></tr>
+                <tr><td>Not Interested</td><td><code>-1</code></td><td style="color:#c62828; font-weight:700;">NO</td></tr>
+                <tr><td>Wrong Person</td><td><code>-2</code></td><td style="color:#c62828; font-weight:700;">NO</td></tr>
+                <tr><td>Lost</td><td><code>-3</code></td><td style="color:#c62828; font-weight:700;">NO</td></tr>
+                <tr><td>Out of Office</td><td><code>0</code></td><td style="color:#c62828; font-weight:700;">NO</td></tr>
+                <tr><td>Auto-reply</td><td><code>is_auto_reply = 1</code></td><td style="color:#c62828; font-weight:700;">NO</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- ==================== CREDENTIALS ==================== -->
+    <div class="section">
+        <div class="section-eyebrow">Reference</div>
+        <h2>Required credentials summary</h2>
+
+        <table>
+            <thead><tr><th>Credential</th><th>Where to get</th><th>Used for</th></tr></thead>
+            <tbody>
+                <tr><td>Instantly API v2 Key</td><td>Instantly &rarr; Settings &rarr; API</td><td>Registering webhooks, API calls</td></tr>
+                <tr><td>Instantly Webhook Secret</td><td>You generate it (<code>openssl rand -hex 32</code>)</td><td>Verifying webhook signatures</td></tr>
+                <tr><td>Kommo Long-lived Token</td><td>Kommo &rarr; Integration &rarr; Keys and scopes</td><td>All Kommo API requests</td></tr>
+                <tr><td>Kommo Subdomain</td><td>Your Kommo URL: <strong>xxx</strong>.kommo.com</td><td>API base URL</td></tr>
+                <tr><td>Pipeline ID + Status ID</td><td>DevTools / API response</td><td>Creating leads in correct pipeline</td></tr>
+            </tbody>
+        </table>
+
+        <div class="warning">
+            <strong>Security:</strong> Store all secrets in <code>.env</code> file only. Never commit <code>.env</code> to git. Add it to <code>.gitignore</code>.
+        </div>
+    </div>
+
+    <!-- ==================== API REFERENCE ==================== -->
+    <div class="section">
+        <div class="section-eyebrow">Reference</div>
+        <h2>API documentation links</h2>
+
+        <div class="block blue">
+            <h4>Instantly API v2</h4>
+            <ul>
+                <li>Docs: <a href="https://developer.instantly.ai" target="_blank">developer.instantly.ai</a></li>
+                <li>Webhooks: <code>POST /api/v2/webhooks</code> &mdash; create</li>
+                <li>Emails: <code>GET /api/v2/emails</code> &mdash; list replies (fallback polling)</li>
+                <li>Auth: Bearer token in <code>Authorization</code> header</li>
+                <li>Rate limits: 20 req/min (email listing)</li>
+            </ul>
+        </div>
+
+        <div class="block blue">
+            <h4>Kommo API v4</h4>
+            <ul>
+                <li>Docs: <a href="https://developers.kommo.com/docs/kommo-for-developers" target="_blank">developers.kommo.com</a></li>
+                <li>Contacts: <code>GET/POST /api/v4/contacts</code></li>
+                <li>Leads: <code>GET/POST /api/v4/leads</code></li>
+                <li>Notes: <code>POST /api/v4/leads/{id}/notes</code></li>
+                <li>Auth: Long-lived token or OAuth 2.0</li>
+                <li>Long-lived token: valid 1 day &ndash; 5 years, no refresh needed</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="footer">
+        Instantly &rarr; Kommo Direct Bridge &mdash; Setup Guide &mdash; April 2026
+    </div>
+</div>
+
+</body>
+</html>
