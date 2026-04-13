@@ -29,6 +29,8 @@ class WebhookPayload:
     campaign_name: str
     reply_subject: str
     reply_text: str
+    outbound_subject: str
+    outbound_text: str
     interest_status: Optional[int]
     is_auto_reply: bool
     timestamp: str
@@ -51,8 +53,10 @@ def parse_payload(raw: dict) -> Optional[WebhookPayload]:
             last_name=lead_data.get("last_name", ""),
             company_name=lead_data.get("company_name", ""),
             campaign_name=event_data.get("campaign_name", ""),
-            reply_subject=event_data.get("subject", ""),
-            reply_text=event_data.get("body", event_data.get("text", "")),
+            reply_subject=event_data.get("subject", event_data.get("reply_subject", "")),
+            reply_text=event_data.get("body", event_data.get("reply_text", event_data.get("text", ""))),
+            outbound_subject=event_data.get("email_subject", ""),
+            outbound_text=event_data.get("email_text", ""),
             interest_status=event_data.get("lt_interest_status"),
             is_auto_reply=bool(event_data.get("is_auto_reply", False)),
             timestamp=event_data.get("timestamp", event_data.get("timestamp_email", "")),
@@ -132,7 +136,7 @@ def process_webhook(
             )
 
         # 3. Find or create lead
-        lead = kommo.find_active_lead_by_contact(contact.id)
+        lead = kommo.find_active_lead_by_contact(contact.id, pipeline_id=pipeline_id)
         if lead is None:
             lead_name = f"Reply from {payload.first_name} {payload.last_name}".strip()
             if lead_name == "Reply from":
@@ -190,6 +194,14 @@ def _format_note(payload: WebhookPayload) -> str:
     if payload.reply_subject:
         parts.append(f"Subject: {payload.reply_subject}")
 
-    parts.append("---")
+    if payload.outbound_subject or payload.outbound_text:
+        parts.append("")
+        parts.append("--- Original message ---")
+        if payload.outbound_subject:
+            parts.append(f"Subject: {payload.outbound_subject}")
+        parts.append(payload.outbound_text or "(no text)")
+
+    parts.append("")
+    parts.append("--- Reply ---")
     parts.append(payload.reply_text or "(no text)")
     return "\n".join(parts)

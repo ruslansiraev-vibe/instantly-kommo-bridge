@@ -15,6 +15,12 @@ venv/
 dist/
 build/
 
+# Deploy scripts (may contain credentials)
+deploy*.sh
+find_project.sh
+setup_systemd*.sh
+test_kommo.py
+
 # OS
 .DS_Store
 Thumbs.db

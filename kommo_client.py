@@ -1,4 +1,10 @@
-"""Kommo CRM API v4 client for contacts, leads, and notes."""
+"""Kommo CRM API v4 client for contacts, leads (deals), and notes.
+
+Bugfix (Apr 2026): 
+- Added detailed logging for all API calls and errors
+- Improved find_active_lead_by_contact (accepts pipeline_id, more robust status check, increased limit)
+- Better error messages when pipeline_id or status_id is invalid
+"""
 
 import logging
 from dataclasses import dataclass
@@ -38,12 +44,15 @@ class KommoClient:
     ) -> Optional[dict]:
         """Make an HTTP request to Kommo API. Returns None on 204/404."""
         url = f"{self._base_url}{path}"
+        logger.debug("Kommo %s %s %s", method, url, kwargs.get("params") or kwargs.get("json", "")[:100])
+
         with httpx.Client(timeout=KOMMO_API_TIMEOUT) as client:
             response = client.request(
                 method, url, headers=self._headers, **kwargs
             )
 
         if response.status_code in (204, 404):
+            logger.debug("Kommo %s %s returned %s", method, path, response.status_code)
             return None
 
         if response.status_code == 429:
@@ -51,8 +60,23 @@ class KommoClient:
             logger.warning("Kommo rate limit hit, retry after %s sec", retry_after)
             raise KommoRateLimitError(retry_after=int(retry_after))
 
+        if response.status_code >= 400:
+            try:
+                error_detail = response.json()
+            except Exception:
+                error_detail = response.text
+            logger.error(
+                "Kommo API error: %s %s -> %s %s",
+                method,
+                path,
+                response.status_code,
+                error_detail,
+            )
+
         response.raise_for_status()
-        return response.json()
+        data = response.json()
+        logger.debug("Kommo %s %s success: %s", method, path, list(data.keys()) if isinstance(data, dict) else "ok")
+        return data
 
     # --- Contacts ---
 
@@ -97,13 +121,10 @@ class KommoClient:
             }
         ]
 
+        # COMPANY is not a standard field_code in all Kommo accounts;
+        # store it as a tag on the contact instead to avoid 400 errors.
         if company:
-            payload[0]["custom_fields_values"].append(
-                {
-                    "field_code": "COMPANY",
-                    "values": [{"value": company}],
-                }
-            )
+            payload[0]["_embedded"]["tags"].append({"name": company})
 
         data = self._request("POST", "/contacts", json=payload)
         created = data["_embedded"]["contacts"][0]
@@ -113,33 +134,55 @@ class KommoClient:
     # --- Leads (deals) ---
 
     def find_active_lead_by_contact(
-        self, contact_id: int
+        self, contact_id: int, pipeline_id: Optional[int] = None
     ) -> Optional[KommoLead]:
-        """Find an active (open) lead linked to a contact."""
-        data = self._request(
+        """Find an active (open) lead linked to a contact in the given pipeline (if provided).
+
+        Uses the /contacts/{id}/links endpoint to get leads actually linked
+        to this contact, then checks their status via /leads.
+        """
+        links_data = self._request(
             "GET",
-            "/leads",
-            params={
-                "filter[contacts_id]": contact_id,
-                "limit": 1,
-                "order[updated_at]": "desc",
-            },
+            f"/contacts/{contact_id}/links",
+            params={"limit": 50},
         )
+        if not links_data:
+            logger.debug("No links found for contact_id=%s", contact_id)
+            return None
+
+        linked_lead_ids = [
+            link["to_entity_id"]
+            for link in links_data.get("_embedded", {}).get("links", [])
+            if link.get("to_entity_type") == "leads"
+        ]
+        if not linked_lead_ids:
+            logger.debug("Contact %s has no linked leads", contact_id)
+            return None
+
+        params: dict = {
+            "filter[id]": linked_lead_ids,
+            "order[updated_at]": "desc",
+        }
+        if pipeline_id:
+            params["filter[pipeline_id]"] = pipeline_id
+
+        data = self._request("GET", "/leads", params=params)
         if not data:
             return None
 
         leads = data.get("_embedded", {}).get("leads", [])
-        # Skip closed leads (status_id 142 = won, 143 = lost in Kommo)
-        active = [
-            lead
-            for lead in leads
-            if lead.get("status_id") not in (142, 143)
-        ]
-        if not active:
+        if not leads:
+            logger.debug("No matching leads for contact_id=%s (linked_ids=%s)", contact_id, linked_lead_ids)
             return None
 
-        lead = active[0]
-        return KommoLead(id=lead["id"], name=lead.get("name", ""))
+        for lead in leads:
+            status_id = lead.get("status_id")
+            if status_id not in (142, 143):
+                logger.debug("Found active lead id=%s status_id=%s for contact=%s", lead["id"], status_id, contact_id)
+                return KommoLead(id=lead["id"], name=lead.get("name", ""))
+
+        logger.debug("All linked leads for contact=%s are closed", contact_id)
+        return None
 
     def create_lead(
         self,
@@ -167,9 +210,15 @@ class KommoClient:
         if campaign_name:
             payload[0]["_embedded"]["tags"].append({"name": campaign_name})
 
+        logger.info(
+            "Creating lead: name='%s', pipeline_id=%s, status_id=%s, contact_id=%s",
+            name, pipeline_id, status_id, contact_id
+        )
+
         data = self._request("POST", "/leads", json=payload)
         created = data["_embedded"]["leads"][0]
-        logger.info("Created Kommo lead id=%d for contact=%d", created["id"], contact_id)
+        logger.info("Created Kommo lead id=%d for contact=%d (pipeline=%d, status=%d)", 
+                   created["id"], contact_id, pipeline_id, status_id)
         return KommoLead(id=created["id"], name=name)
 
     # --- Notes ---
