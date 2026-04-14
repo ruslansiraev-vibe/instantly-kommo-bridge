@@ -34,6 +34,19 @@ A lightweight Python (FastAPI) microservice that bridges Instantly and Kommo dir
 5. **Preserves context** -- every new reply is added as a note inside the existing deal
 6. **Prevents duplicate processing** -- SQLite tracks processed email IDs, so webhook retries are safe
 
+## Campaign routing UI (NEW)
+
+You can map specific Instantly campaigns to specific Kommo pipeline/stage:
+
+- Open admin page: `http://YOUR-SERVER:PORT/admin/routes`
+- The page loads:
+  - campaigns from Instantly API
+  - pipelines and statuses from Kommo API
+- Save mapping `campaign_name -> pipeline_id + status_id`
+- If no mapping exists for a campaign, default `.env` values are used:
+  - `KOMMO_PIPELINE_ID`
+  - `KOMMO_PIPELINE_STATUS_ID`
+
 ## Architecture
 
 ```

@@ -60,3 +60,50 @@ class DedupStore:
                     datetime.now(timezone.utc).isoformat(),
                 ),
             )
+
+    def try_claim(self, email_id: str, lead_email: str) -> bool:
+        """
+        Atomically claim a webhook event for processing.
+
+        Returns True only for the first worker that inserts this email_id.
+        Prevents race-condition duplicates when identical webhooks arrive in parallel.
+        """
+        with self._get_conn() as conn:
+            cur = conn.execute(
+                """
+                INSERT OR IGNORE INTO processed_replies
+                    (email_id, lead_email, processed_at)
+                VALUES (?, ?, ?)
+                """,
+                (
+                    email_id,
+                    lead_email,
+                    datetime.now(timezone.utc).isoformat(),
+                ),
+            )
+            return cur.rowcount == 1
+
+    def complete_claim(
+        self,
+        email_id: str,
+        kommo_contact_id: int,
+        kommo_lead_id: int,
+    ) -> None:
+        """Attach Kommo entity IDs to an already claimed event."""
+        with self._get_conn() as conn:
+            conn.execute(
+                """
+                UPDATE processed_replies
+                SET kommo_contact_id = ?, kommo_lead_id = ?
+                WHERE email_id = ?
+                """,
+                (kommo_contact_id, kommo_lead_id, email_id),
+            )
+
+    def release_claim(self, email_id: str) -> None:
+        """Release a claim so failed events can be retried safely."""
+        with self._get_conn() as conn:
+            conn.execute(
+                "DELETE FROM processed_replies WHERE email_id = ?",
+                (email_id,),
+            )

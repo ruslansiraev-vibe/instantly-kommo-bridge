@@ -1,5 +1,6 @@
 """Business logic for processing Instantly webhook events."""
 
+import hashlib
 import logging
 from dataclasses import dataclass
 from typing import Optional
@@ -45,9 +46,14 @@ def parse_payload(raw: dict) -> Optional[WebhookPayload]:
         event_data = raw.get("data", raw)
         lead_data = event_data.get("lead", event_data)
 
+        email_id = str(
+            event_data.get("email_id", raw.get("email_id", ""))
+            or event_data.get("reply_to_uuid", raw.get("reply_to_uuid", ""))
+        )
+
         return WebhookPayload(
             event_type=event_type,
-            email_id=str(event_data.get("id", event_data.get("email_id", ""))),
+            email_id=email_id,
             lead_email=lead_data.get("email", event_data.get("lead_email", "")),
             first_name=lead_data.get("first_name", ""),
             last_name=lead_data.get("last_name", ""),
@@ -78,6 +84,15 @@ def should_process(payload: WebhookPayload) -> bool:
 
     if not payload.lead_email:
         logger.warning("Skipping: no lead email in payload")
+        return False
+
+    # Avoid duplicates from status-only events without actual reply content.
+    if payload.event_type in ("lead_interested", "lead_meeting_booked") and not payload.reply_text:
+        logger.debug(
+            "Skipping %s without reply text for %s",
+            payload.event_type,
+            payload.lead_email,
+        )
         return False
 
     # For lead_interested / lead_meeting_booked, AI already classified as positive
@@ -119,9 +134,11 @@ def process_webhook(
     Full pipeline: filter -> dedup -> find/create contact -> find/create lead -> add note.
     Returns immutable result.
     """
-    # 1. Dedup check
-    if store.is_processed(payload.email_id):
-        logger.info("Already processed email_id=%s, skipping", payload.email_id)
+    dedup_key = _build_dedup_key(payload)
+
+    # 1. Atomic dedup claim (safe under parallel workers)
+    if not store.try_claim(dedup_key, payload.lead_email):
+        logger.info("Already claimed/processed dedup_key=%s, skipping", dedup_key)
         return ProcessResult(success=True)
 
     try:
@@ -153,10 +170,9 @@ def process_webhook(
         note_text = _format_note(payload)
         note_id = kommo.add_note_to_lead(lead.id, note_text)
 
-        # 5. Mark as processed
-        store.mark_processed(
-            email_id=payload.email_id,
-            lead_email=payload.lead_email,
+        # 5. Finalize dedup record with created/found Kommo IDs
+        store.complete_claim(
+            email_id=dedup_key,
             kommo_contact_id=contact.id,
             kommo_lead_id=lead.id,
         )
@@ -176,9 +192,11 @@ def process_webhook(
         )
 
     except KommoRateLimitError as e:
+        store.release_claim(dedup_key)
         logger.warning("Rate limited: %s", e)
         return ProcessResult(success=False, error=f"rate_limited:{e.retry_after}")
     except Exception as e:
+        store.release_claim(dedup_key)
         logger.exception("Failed to process webhook for %s", payload.lead_email)
         return ProcessResult(success=False, error=str(e))
 
@@ -205,3 +223,26 @@ def _format_note(payload: WebhookPayload) -> str:
     parts.append("--- Reply ---")
     parts.append(payload.reply_text or "(no text)")
     return "\n".join(parts)
+
+
+def _build_dedup_key(payload: WebhookPayload) -> str:
+    """
+    Build stable dedup key for retries and overlapping event types.
+
+    Prefer Instantly-provided email_id when available. If not present, use a
+    deterministic fingerprint of key message attributes.
+    """
+    if payload.email_id:
+        return payload.email_id
+
+    fingerprint = "|".join(
+        [
+            payload.lead_email.strip().lower(),
+            payload.timestamp.strip(),
+            payload.reply_subject.strip().lower(),
+            payload.reply_text.strip(),
+            payload.campaign_name.strip().lower(),
+        ]
+    )
+    digest = hashlib.sha256(fingerprint.encode("utf-8")).hexdigest()
+    return f"fp:{digest}"

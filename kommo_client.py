@@ -78,6 +78,32 @@ class KommoClient:
         logger.debug("Kommo %s %s success: %s", method, path, list(data.keys()) if isinstance(data, dict) else "ok")
         return data
 
+    def list_pipelines(self) -> list[dict]:
+        """Return pipelines with statuses for admin routing UI."""
+        data = self._request("GET", "/leads/pipelines", params={"limit": 250})
+        if not data:
+            return []
+
+        pipelines = data.get("_embedded", {}).get("pipelines", [])
+        result: list[dict] = []
+        for p in pipelines:
+            statuses = []
+            for s in p.get("_embedded", {}).get("statuses", []):
+                statuses.append(
+                    {
+                        "id": s.get("id"),
+                        "name": s.get("name", ""),
+                    }
+                )
+            result.append(
+                {
+                    "id": p.get("id"),
+                    "name": p.get("name", ""),
+                    "statuses": statuses,
+                }
+            )
+        return result
+
     # --- Contacts ---
 
     def find_contact_by_email(self, email: str) -> Optional[KommoContact]:
