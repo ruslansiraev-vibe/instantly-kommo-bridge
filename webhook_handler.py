@@ -10,11 +10,11 @@ from dedup_store import DedupStore
 
 logger = logging.getLogger(__name__)
 
-# Instantly interest statuses: 1=Interested, 2=Meeting Booked, 3=Meeting Completed, 4=Won
-POSITIVE_STATUSES = {1, 2, 3, 4}
+# Instantly interest statuses: 0=Out of Office, 1=Interested, 2=Meeting Booked, 3=Meeting Completed, 4=Won
+POSITIVE_STATUSES = {0, 1, 2, 3, 4}
 
 # Webhook events we process
-ALLOWED_EVENTS = {"reply_received", "lead_interested", "lead_meeting_booked"}
+ALLOWED_EVENTS = {"reply_received", "lead_interested", "lead_meeting_booked", "lead_out_of_office"}
 
 
 @dataclass(frozen=True)
@@ -87,7 +87,7 @@ def should_process(payload: WebhookPayload) -> bool:
         return False
 
     # Avoid duplicates from status-only events without actual reply content.
-    if payload.event_type in ("lead_interested", "lead_meeting_booked") and not payload.reply_text:
+    if payload.event_type in ("lead_interested", "lead_meeting_booked", "lead_out_of_office") and not payload.reply_text:
         logger.debug(
             "Skipping %s without reply text for %s",
             payload.event_type,
@@ -95,8 +95,8 @@ def should_process(payload: WebhookPayload) -> bool:
         )
         return False
 
-    # For lead_interested / lead_meeting_booked, AI already classified as positive
-    if payload.event_type in ("lead_interested", "lead_meeting_booked"):
+    # For lead_interested / lead_meeting_booked / lead_out_of_office, Instantly already classified
+    if payload.event_type in ("lead_interested", "lead_meeting_booked", "lead_out_of_office"):
         return True
 
     # For reply_received, check interest status if available
