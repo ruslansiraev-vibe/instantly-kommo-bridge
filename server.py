@@ -34,12 +34,18 @@ app = FastAPI(title="Instantly-Kommo Bridge", version="1.0.0")
 # --- Webhook secret verification ---
 
 
-def verify_signature(payload_bytes: bytes, signature: str, secret: str) -> bool:
-    """Verify HMAC-SHA256 signature from Instantly webhook."""
-    expected = hmac.new(
-        secret.encode(), payload_bytes, hashlib.sha256
-    ).hexdigest()
-    return hmac.compare_digest(expected, signature)
+def verify_webhook_secret(payload_bytes: bytes, header_value: str, secret: str) -> bool:
+    """
+    Verify Instantly webhook header.
+
+    Instantly sends custom headers as static values (shared secret), not as HMAC signatures.
+    We also accept legacy HMAC format for backward compatibility.
+    """
+    if hmac.compare_digest(header_value, secret):
+        return True
+
+    expected_hmac = hmac.new(secret.encode(), payload_bytes, hashlib.sha256).hexdigest()
+    return hmac.compare_digest(expected_hmac, header_value)
 
 
 # --- Routes ---
@@ -62,9 +68,9 @@ async def receive_webhook(request: Request):
     # Verify webhook signature if header present
     signature = request.headers.get("X-Webhook-Secret", "")
     if signature and config.instantly_webhook_secret:
-        if not verify_signature(body, signature, config.instantly_webhook_secret):
-            logger.warning("Invalid webhook signature")
-            raise HTTPException(status_code=401, detail="Invalid signature")
+        if not verify_webhook_secret(body, signature, config.instantly_webhook_secret):
+            logger.warning("Invalid webhook secret header")
+            raise HTTPException(status_code=401, detail="Invalid webhook secret")
 
     raw = await request.json()
     logger.debug("Received webhook: %s", raw)
