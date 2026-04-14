@@ -276,6 +276,26 @@ function escapeHtml(value) {{
     .replaceAll(">", "&gt;");
 }}
 
+function pipelineLabelById(id) {{
+  const pipeline = pipelines.find(p => Number(p.id) === Number(id));
+  if (!pipeline) {{
+    return String(id);
+  }}
+  return `${{pipeline.name}} (${{pipeline.id}})`;
+}}
+
+function statusLabelByIds(pipelineId, statusId) {{
+  const pipeline = pipelines.find(p => Number(p.id) === Number(pipelineId));
+  if (!pipeline) {{
+    return String(statusId);
+  }}
+  const status = (pipeline.statuses || []).find(s => Number(s.id) === Number(statusId));
+  if (!status) {{
+    return String(statusId);
+  }}
+  return `${{status.name}} (${{status.id}})`;
+}}
+
 async function loadCampaigns() {{
   const res = await fetch("/api/admin/instantly/campaigns");
   const data = await res.json();
@@ -330,8 +350,8 @@ async function loadRoutes() {{
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td>${{escapeHtml(route.campaign_name)}}</td>
-      <td>${{route.pipeline_id}}</td>
-      <td>${{route.status_id}}</td>
+      <td>${{escapeHtml(pipelineLabelById(route.pipeline_id))}}</td>
+      <td>${{escapeHtml(statusLabelByIds(route.pipeline_id, route.status_id))}}</td>
       <td>${{escapeHtml(route.updated_at || "")}}</td>
       <td><button class="danger" data-campaign="${{escapeHtml(route.campaign_name)}}">Delete</button></td>
     `;
