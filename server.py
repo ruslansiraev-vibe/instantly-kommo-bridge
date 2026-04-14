@@ -548,6 +548,25 @@ async def upsert_campaign_route(payload: CampaignRouteUpsertRequest):
     if not campaign_name:
         raise HTTPException(status_code=400, detail="campaign_name cannot be empty")
 
+    # Validate status_id: the first status in every Kommo pipeline is
+    # "Incoming leads" (a system status). The API rejects it for lead creation.
+    try:
+        pipelines = kommo.list_pipelines()
+        for p in pipelines:
+            if p["id"] == payload.pipeline_id:
+                statuses = p.get("statuses", [])
+                if statuses and statuses[0]["id"] == payload.status_id:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f'"{statuses[0]["name"]}" is a system status and cannot be used. '
+                               f'Pick the next status (e.g. "{statuses[1]["name"]}" — {statuses[1]["id"]}).',
+                    )
+                break
+    except HTTPException:
+        raise
+    except Exception:
+        logger.warning("Could not validate status_id, saving as-is")
+
     route_store.upsert_route(
         campaign_name=campaign_name,
         pipeline_id=payload.pipeline_id,
@@ -746,7 +765,10 @@ function fillStatuses() {{
   const selected = pipelines.find(p => String(p.id) === pipelineSelect.value);
   statusSelect.innerHTML = "";
   const statuses = selected ? (selected.statuses || []) : [];
-  for (const st of statuses) {{
+  // Skip first status ("Incoming leads") — it's a system status that Kommo API rejects,
+  // and skip closed statuses (142, 143)
+  for (const st of statuses.slice(1)) {{
+    if (st.id === 142 || st.id === 143) continue;
     const option = document.createElement("option");
     option.value = String(st.id);
     option.textContent = `${{st.name}} (${{st.id}})`;

@@ -10,10 +10,10 @@ from dedup_store import DedupStore
 
 logger = logging.getLogger(__name__)
 
-# Webhook events we process — only classified statuses from Instantly AI.
-# reply_received is excluded because it fires before classification and has
-# no lt_interest_status, causing all replies to pass through unfiltered.
-ALLOWED_EVENTS = {"lead_interested", "lead_meeting_booked", "lead_out_of_office"}
+# Webhook events we forward to Kommo.
+# reply_received is safe to include: it shares the same email_id as the later
+# classified event (lead_interested, etc.), so dedup prevents double-processing.
+ALLOWED_EVENTS = {"reply_received", "lead_interested", "lead_meeting_booked", "lead_out_of_office"}
 
 
 @dataclass(frozen=True)
