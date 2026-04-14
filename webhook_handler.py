@@ -10,11 +10,10 @@ from dedup_store import DedupStore
 
 logger = logging.getLogger(__name__)
 
-# Instantly interest statuses: 0=Out of Office, 1=Interested, 2=Meeting Booked, 3=Meeting Completed, 4=Won
-POSITIVE_STATUSES = {0, 1, 2, 3, 4}
-
-# Webhook events we process
-ALLOWED_EVENTS = {"reply_received", "lead_interested", "lead_meeting_booked", "lead_out_of_office"}
+# Webhook events we process — only classified statuses from Instantly AI.
+# reply_received is excluded because it fires before classification and has
+# no lt_interest_status, causing all replies to pass through unfiltered.
+ALLOWED_EVENTS = {"lead_interested", "lead_meeting_booked", "lead_out_of_office"}
 
 
 @dataclass(frozen=True)
@@ -86,28 +85,14 @@ def should_process(payload: WebhookPayload) -> bool:
         logger.warning("Skipping: no lead email in payload")
         return False
 
-    # Avoid duplicates from status-only events without actual reply content.
-    if payload.event_type in ("lead_interested", "lead_meeting_booked", "lead_out_of_office") and not payload.reply_text:
+    # Skip status-only events without actual reply content
+    if not payload.reply_text:
         logger.debug(
             "Skipping %s without reply text for %s",
             payload.event_type,
             payload.lead_email,
         )
         return False
-
-    # For lead_interested / lead_meeting_booked / lead_out_of_office, Instantly already classified
-    if payload.event_type in ("lead_interested", "lead_meeting_booked", "lead_out_of_office"):
-        return True
-
-    # For reply_received, check interest status if available
-    if payload.interest_status is not None:
-        if payload.interest_status not in POSITIVE_STATUSES:
-            logger.debug(
-                "Skipping negative reply from %s (status=%s)",
-                payload.lead_email,
-                payload.interest_status,
-            )
-            return False
 
     return True
 
@@ -121,6 +106,7 @@ class ProcessResult:
     lead_id: int = 0
     note_id: int = 0
     error: str = ""
+    deduplicated: bool = False
 
 
 def process_webhook(
@@ -139,7 +125,7 @@ def process_webhook(
     # 1. Atomic dedup claim (safe under parallel workers)
     if not store.try_claim(dedup_key, payload.lead_email):
         logger.info("Already claimed/processed dedup_key=%s, skipping", dedup_key)
-        return ProcessResult(success=True)
+        return ProcessResult(success=True, deduplicated=True)
 
     try:
         # 2. Find or create contact
