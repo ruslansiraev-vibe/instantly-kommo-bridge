@@ -213,22 +213,19 @@ def _format_note(payload: WebhookPayload) -> str:
 
 def _build_dedup_key(payload: WebhookPayload) -> str:
     """
-    Build stable dedup key for retries and overlapping event types.
+    Build stable dedup key based on reply content.
 
-    Prefer Instantly-provided email_id when available. If not present, use a
-    deterministic fingerprint of key message attributes.
+    Always uses a content fingerprint (email + reply text + campaign) so that
+    reply_received and lead_interested for the same reply collide, preventing
+    duplicate notes on the same Kommo lead.
     """
-    if payload.email_id:
-        return payload.email_id
-
+    # Normalize reply text: strip trailing quoted thread to compare only the new message
+    reply_core = (payload.reply_text or "").strip()[:500]
     fingerprint = "|".join(
         [
             payload.lead_email.strip().lower(),
-            payload.timestamp.strip(),
-            payload.reply_subject.strip().lower(),
-            payload.reply_text.strip(),
             payload.campaign_name.strip().lower(),
+            reply_core,
         ]
     )
-    digest = hashlib.sha256(fingerprint.encode("utf-8")).hexdigest()
-    return f"fp:{digest}"
+    return f"fp:{hashlib.sha256(fingerprint.encode('utf-8')).hexdigest()}"
