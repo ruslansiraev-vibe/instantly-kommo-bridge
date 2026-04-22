@@ -115,9 +115,11 @@ def process_webhook(
     store: DedupStore,
     pipeline_id: int,
     status_id: int,
+    task_user_id: Optional[int] = None,
+    task_text: Optional[str] = None,
 ) -> ProcessResult:
     """
-    Full pipeline: filter -> dedup -> find/create contact -> find/create lead -> add note.
+    Full pipeline: dedup -> find/create contact -> find/create lead -> add note -> create task.
     Returns immutable result.
     """
     dedup_key = _build_dedup_key(payload)
@@ -156,7 +158,19 @@ def process_webhook(
         note_text = _format_note(payload)
         note_id = kommo.add_note_to_lead(lead.id, note_text)
 
-        # 5. Finalize dedup record with created/found Kommo IDs
+        # 5. Create task if a responsible user is configured
+        if task_user_id:
+            final_task_text = task_text or "New reply check"
+            try:
+                kommo.create_task(
+                    lead_id=lead.id,
+                    responsible_user_id=task_user_id,
+                    text=final_task_text,
+                )
+            except Exception:
+                logger.warning("Failed to create task for lead=%d, continuing", lead.id, exc_info=True)
+
+        # 6. Finalize dedup record with created/found Kommo IDs
         store.complete_claim(
             email_id=dedup_key,
             kommo_contact_id=contact.id,

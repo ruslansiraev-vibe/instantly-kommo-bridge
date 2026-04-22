@@ -264,6 +264,60 @@ class KommoClient:
         return note_id
 
 
+    # --- Tasks ---
+
+    def create_task(
+        self,
+        lead_id: int,
+        responsible_user_id: int,
+        text: str,
+        complete_till_seconds: int = 86400,
+    ) -> int:
+        """Create a task linked to a lead. Returns task id.
+
+        Args:
+            complete_till_seconds: deadline offset from now (default 24h).
+        """
+        import time
+
+        payload = [
+            {
+                "task_type_id": 1,
+                "text": text,
+                "complete_till": int(time.time()) + complete_till_seconds,
+                "entity_id": lead_id,
+                "entity_type": "leads",
+                "responsible_user_id": responsible_user_id,
+            }
+        ]
+
+        data = self._request("POST", "/tasks", json=payload)
+        task_id = data["_embedded"]["tasks"][0]["id"]
+        logger.info(
+            "Created task id=%d on lead=%d for user=%d",
+            task_id, lead_id, responsible_user_id,
+        )
+        return task_id
+
+    # --- Users ---
+
+    def list_users(self) -> list[dict]:
+        """Return list of account users [{id, name, email}]."""
+        data = self._request("GET", "/users", params={"limit": 250})
+        if not data:
+            return []
+
+        users = data.get("_embedded", {}).get("users", [])
+        return [
+            {
+                "id": u.get("id"),
+                "name": u.get("name", ""),
+                "email": u.get("email", ""),
+            }
+            for u in users
+        ]
+
+
 class KommoRateLimitError(Exception):
     """Raised when Kommo API returns 429."""
 

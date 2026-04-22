@@ -6,6 +6,8 @@ import hmac
 import logging
 from collections import OrderedDict
 
+from typing import Optional
+
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import JSONResponse, HTMLResponse
 from pydantic import BaseModel, Field
@@ -61,6 +63,8 @@ class CampaignRouteUpsertRequest(BaseModel):
     campaign_name: str = Field(min_length=1)
     pipeline_id: int
     status_id: int
+    task_user_id: Optional[int] = None
+    task_text: Optional[str] = None
 
 
 # --- Instantly event_type → human-readable lead status ---
@@ -477,6 +481,8 @@ async def receive_webhook(request: Request):
     route = route_store.get_route(payload.campaign_name)
     target_pipeline_id = route.pipeline_id if route else config.kommo_pipeline_id
     target_status_id = route.status_id if route else config.kommo_pipeline_status_id
+    target_task_user_id = route.task_user_id if route else None
+    target_task_text = route.task_text if route else None
 
     # Log as "processing" before we start
     log_id = store.log_webhook(
@@ -495,6 +501,8 @@ async def receive_webhook(request: Request):
         store=store,
         pipeline_id=target_pipeline_id,
         status_id=target_status_id,
+        task_user_id=target_task_user_id,
+        task_text=target_task_text,
     )
 
     if result.deduplicated:
@@ -535,6 +543,8 @@ async def list_campaign_routes():
                 "campaign_name": route.campaign_name,
                 "pipeline_id": route.pipeline_id,
                 "status_id": route.status_id,
+                "task_user_id": route.task_user_id,
+                "task_text": route.task_text,
                 "updated_at": route.updated_at,
             }
             for route in routes
@@ -571,6 +581,8 @@ async def upsert_campaign_route(payload: CampaignRouteUpsertRequest):
         campaign_name=campaign_name,
         pipeline_id=payload.pipeline_id,
         status_id=payload.status_id,
+        task_user_id=payload.task_user_id,
+        task_text=payload.task_text.strip() if payload.task_text else None,
     )
     return {"status": "ok"}
 
@@ -579,6 +591,18 @@ async def upsert_campaign_route(payload: CampaignRouteUpsertRequest):
 async def delete_campaign_route(campaign_name: str):
     route_store.delete_route(campaign_name)
     return {"status": "ok"}
+
+
+@app.get("/api/admin/kommo/users")
+async def list_kommo_users():
+    try:
+        return {"items": kommo.list_users()}
+    except Exception as e:
+        logger.exception("Failed to load Kommo users")
+        return JSONResponse(
+            {"items": [], "error": str(e)},
+            status_code=502,
+        )
 
 
 @app.get("/api/admin/instantly/campaigns")
@@ -680,6 +704,14 @@ async def campaign_routes_admin():
         <label for="statusSelect">Kommo status</label>
         <select id="statusSelect" style="width:100%;"></select>
       </div>
+      <div style="min-width:260px; flex: 1;">
+        <label for="taskUserSelect">Responsible User</label>
+        <select id="taskUserSelect" style="width:100%;"></select>
+      </div>
+      <div style="min-width:200px; flex: 1;">
+        <label for="taskTextInput">Message task</label>
+        <input id="taskTextInput" type="text" value="New reply check" placeholder="New reply check" style="width:100%;" />
+      </div>
       <div>
         <button id="saveBtn" class="primary">Save mapping</button>
       </div>
@@ -693,8 +725,10 @@ async def campaign_routes_admin():
       <thead>
         <tr>
           <th>Campaign</th>
-          <th>Pipeline ID</th>
-          <th>Status ID</th>
+          <th>Pipeline</th>
+          <th>Status</th>
+          <th>Responsible User</th>
+          <th>Message task</th>
           <th>Updated</th>
           <th></th>
         </tr>
@@ -707,11 +741,14 @@ async def campaign_routes_admin():
 const campaignSelect = document.getElementById("campaignSelect");
 const pipelineSelect = document.getElementById("pipelineSelect");
 const statusSelect = document.getElementById("statusSelect");
+const taskUserSelect = document.getElementById("taskUserSelect");
+const taskTextInput = document.getElementById("taskTextInput");
 const routesTbody = document.getElementById("routesTbody");
 const statusEl = document.getElementById("status");
 const saveBtn = document.getElementById("saveBtn");
 
 let pipelines = [];
+let users = [];
 
 function setStatus(message, isError=false) {{
   statusEl.textContent = message;
@@ -743,6 +780,25 @@ function statusLabelByIds(pipelineId, statusId) {{
     return String(statusId);
   }}
   return `${{status.name}} (${{status.id}})`;
+}}
+
+function userNameById(id) {{
+  if (!id) return "—";
+  const u = users.find(x => Number(x.id) === Number(id));
+  return u ? `${{u.name}} (${{u.id}})` : String(id);
+}}
+
+async function loadUsers() {{
+  const res = await fetch("/api/admin/kommo/users");
+  const data = await res.json();
+  users = data.items || [];
+  taskUserSelect.innerHTML = '<option value="">No task</option>';
+  for (const u of users) {{
+    const option = document.createElement("option");
+    option.value = String(u.id);
+    option.textContent = `${{u.name}}${{u.email ? " (" + u.email + ")" : ""}}`;
+    taskUserSelect.appendChild(option);
+  }}
 }}
 
 async function loadCampaigns() {{
@@ -804,6 +860,8 @@ async function loadRoutes() {{
       <td>${{escapeHtml(route.campaign_name)}}</td>
       <td>${{escapeHtml(pipelineLabelById(route.pipeline_id))}}</td>
       <td>${{escapeHtml(statusLabelByIds(route.pipeline_id, route.status_id))}}</td>
+      <td>${{escapeHtml(userNameById(route.task_user_id))}}</td>
+      <td>${{escapeHtml(route.task_text || "—")}}</td>
       <td>${{escapeHtml(route.updated_at || "")}}</td>
       <td><button class="danger" data-campaign="${{escapeHtml(route.campaign_name)}}">Delete</button></td>
     `;
@@ -833,6 +891,8 @@ saveBtn.addEventListener("click", async () => {{
   const campaign_name = campaignSelect.value;
   const pipeline_id = Number(pipelineSelect.value);
   const status_id = Number(statusSelect.value);
+  const task_user_id = taskUserSelect.value ? Number(taskUserSelect.value) : null;
+  const task_text = taskTextInput.value.trim() || null;
   if (!campaign_name || !pipeline_id || !status_id) {{
     setStatus("Choose campaign, pipeline and status", true);
     return;
@@ -841,10 +901,11 @@ saveBtn.addEventListener("click", async () => {{
   const res = await fetch("/api/admin/routes", {{
     method: "POST",
     headers: {{ "Content-Type": "application/json" }},
-    body: JSON.stringify({{ campaign_name, pipeline_id, status_id }}),
+    body: JSON.stringify({{ campaign_name, pipeline_id, status_id, task_user_id, task_text }}),
   }});
   if (!res.ok) {{
-    setStatus("Failed to save mapping", true);
+    const err = await res.json().catch(() => ({{}}));
+    setStatus(err.detail || "Failed to save mapping", true);
     return;
   }}
 
@@ -854,8 +915,7 @@ saveBtn.addEventListener("click", async () => {{
 
 async function boot() {{
   setStatus("Loading...");
-  await loadCampaigns();
-  await loadPipelines();
+  await Promise.all([loadCampaigns(), loadPipelines(), loadUsers()]);
   await loadRoutes();
   setStatus("Ready");
 }}
