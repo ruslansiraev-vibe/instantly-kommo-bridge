@@ -680,9 +680,11 @@ async def campaign_routes_admin():
     .row {{ display: flex; gap: 10px; flex-wrap: wrap; align-items: end; }}
     table {{ width: 100%; border-collapse: collapse; margin-top: 8px; }}
     th, td {{ border-bottom: 1px solid #eee; padding: 8px; text-align: left; }}
-    .danger {{ background: #b42318; color: white; border: none; border-radius: 6px; }}
-    .primary {{ background: #175cd3; color: white; border: none; border-radius: 6px; }}
+    .danger {{ background: #b42318; color: white; border: none; border-radius: 6px; cursor: pointer; }}
+    .primary {{ background: #175cd3; color: white; border: none; border-radius: 6px; cursor: pointer; }}
+    .edit-btn {{ background: #067647; color: white; border: none; border-radius: 6px; cursor: pointer; margin-right: 4px; }}
     .status {{ margin-top: 8px; min-height: 18px; }}
+    .btn-group {{ display: flex; gap: 4px; }}
   </style>
 </head>
 <body>
@@ -789,32 +791,33 @@ function userNameById(id) {{
 }}
 
 async function loadUsers() {{
-  const res = await fetch("/api/admin/kommo/users");
-  const data = await res.json();
-  users = data.items || [];
-  taskUserSelect.innerHTML = '<option value="">No task</option>';
-  for (const u of users) {{
-    const option = document.createElement("option");
-    option.value = String(u.id);
-    option.textContent = `${{u.name}}${{u.email ? " (" + u.email + ")" : ""}}`;
-    taskUserSelect.appendChild(option);
-  }}
+  try {{
+    const res = await fetch("/api/admin/kommo/users");
+    const data = await res.json();
+    users = data.items || [];
+    taskUserSelect.innerHTML = '<option value="">No task</option>';
+    for (const u of users) {{
+      const option = document.createElement("option");
+      option.value = String(u.id);
+      option.textContent = `${{u.name}}${{u.email ? " (" + u.email + ")" : ""}}`;
+      taskUserSelect.appendChild(option);
+    }}
+  }} catch(e) {{ console.error("loadUsers:", e); }}
 }}
 
 async function loadCampaigns() {{
-  const res = await fetch("/api/admin/instantly/campaigns");
-  const data = await res.json();
-  if (!res.ok) {{
-    throw new Error(data.error || "Failed to load campaigns");
-  }}
-  const items = (data.items || []).filter(x => x.name);
-  campaignSelect.innerHTML = "";
-  for (const item of items) {{
-    const option = document.createElement("option");
-    option.value = item.name;
-    option.textContent = item.name;
-    campaignSelect.appendChild(option);
-  }}
+  try {{
+    const res = await fetch("/api/admin/instantly/campaigns");
+    const data = await res.json();
+    const items = (data.items || []).filter(x => x.name);
+    campaignSelect.innerHTML = "";
+    for (const item of items) {{
+      const option = document.createElement("option");
+      option.value = item.name;
+      option.textContent = item.name;
+      campaignSelect.appendChild(option);
+    }}
+  }} catch(e) {{ console.error("loadCampaigns:", e); setStatus("Failed to load campaigns: " + e.message, true); }}
 }}
 
 function fillStatuses() {{
@@ -833,20 +836,19 @@ function fillStatuses() {{
 }}
 
 async function loadPipelines() {{
-  const res = await fetch("/api/admin/kommo/pipelines");
-  const data = await res.json();
-  if (!res.ok) {{
-    throw new Error(data.error || "Failed to load pipelines");
-  }}
-  pipelines = data.items || [];
-  pipelineSelect.innerHTML = "";
-  for (const p of pipelines) {{
-    const option = document.createElement("option");
-    option.value = String(p.id);
-    option.textContent = `${{p.name}} (${{p.id}})`;
-    pipelineSelect.appendChild(option);
-  }}
-  fillStatuses();
+  try {{
+    const res = await fetch("/api/admin/kommo/pipelines");
+    const data = await res.json();
+    pipelines = data.items || [];
+    pipelineSelect.innerHTML = "";
+    for (const p of pipelines) {{
+      const option = document.createElement("option");
+      option.value = String(p.id);
+      option.textContent = `${{p.name}} (${{p.id}})`;
+      pipelineSelect.appendChild(option);
+    }}
+    fillStatuses();
+  }} catch(e) {{ console.error("loadPipelines:", e); setStatus("Failed to load pipelines: " + e.message, true); }}
 }}
 
 async function loadRoutes() {{
@@ -863,15 +865,18 @@ async function loadRoutes() {{
       <td>${{escapeHtml(userNameById(route.task_user_id))}}</td>
       <td>${{escapeHtml(route.task_text || "—")}}</td>
       <td>${{escapeHtml(route.updated_at || "")}}</td>
-      <td><button class="danger" data-campaign="${{escapeHtml(route.campaign_name)}}">Delete</button></td>
+      <td class="btn-group">
+        <button class="edit-btn" data-route='${{JSON.stringify(route).replace(/'/g,"&#39;")}}'>Edit</button>
+        <button class="danger" data-del="${{escapeHtml(route.campaign_name)}}">Delete</button>
+      </td>
     `;
     routesTbody.appendChild(tr);
   }}
 
-  routesTbody.querySelectorAll("button[data-campaign]").forEach(btn => {{
+  routesTbody.querySelectorAll("button[data-del]").forEach(btn => {{
     btn.addEventListener("click", async () => {{
-      const campaign = btn.getAttribute("data-campaign");
-      if (!campaign) return;
+      const campaign = btn.getAttribute("data-del");
+      if (!campaign || !confirm(`Delete mapping for "${{campaign}}"?`)) return;
       const resDelete = await fetch(`/api/admin/routes/${{encodeURIComponent(campaign)}}`, {{
         method: "DELETE",
       }});
@@ -881,6 +886,30 @@ async function loadRoutes() {{
       }}
       setStatus("Mapping deleted");
       await loadRoutes();
+    }});
+  }});
+
+  routesTbody.querySelectorAll("button.edit-btn").forEach(btn => {{
+    btn.addEventListener("click", () => {{
+      const route = JSON.parse(btn.getAttribute("data-route"));
+      // Fill campaign (add option if not in dropdown)
+      let campOpt = [...campaignSelect.options].find(o => o.value === route.campaign_name);
+      if (!campOpt) {{
+        campOpt = document.createElement("option");
+        campOpt.value = route.campaign_name;
+        campOpt.textContent = route.campaign_name;
+        campaignSelect.appendChild(campOpt);
+      }}
+      campaignSelect.value = route.campaign_name;
+      // Fill pipeline
+      pipelineSelect.value = String(route.pipeline_id);
+      fillStatuses();
+      statusSelect.value = String(route.status_id);
+      // Fill task fields
+      taskUserSelect.value = route.task_user_id ? String(route.task_user_id) : "";
+      taskTextInput.value = route.task_text || "New reply check";
+      setStatus("Editing: " + route.campaign_name);
+      window.scrollTo({{ top: 0, behavior: "smooth" }});
     }});
   }});
 }}
@@ -915,14 +944,23 @@ saveBtn.addEventListener("click", async () => {{
 
 async function boot() {{
   setStatus("Loading...");
-  await Promise.all([loadCampaigns(), loadPipelines(), loadUsers()]);
-  await loadRoutes();
-  setStatus("Ready");
+  try {{
+    await Promise.all([loadCampaigns(), loadPipelines(), loadUsers()]);
+    await loadRoutes();
+    const campCount = campaignSelect.options.length;
+    const pipeCount = pipelineSelect.options.length;
+    if (campCount === 0 || pipeCount === 0) {{
+      setStatus("Warning: some data did not load. Check browser console (F12).", true);
+    }} else {{
+      setStatus("Ready — " + campCount + " campaigns, " + pipeCount + " pipelines");
+    }}
+  }} catch(e) {{
+    console.error("boot error:", e);
+    setStatus("Error: " + (e.message || "Failed to initialize"), true);
+  }}
 }}
 
-boot().catch((e) => {{
-  setStatus(e.message || "Failed to initialize admin page", true);
-}});
+boot();
 </script>
 </body>
 </html>
